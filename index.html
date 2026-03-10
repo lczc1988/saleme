@@ -1,0 +1,890 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>撒了么 · 驾驶平稳检测</title>
+  <style>
+    :root {
+      --bg: #0d0f14;
+      --surface: #161b27;
+      --card: #1e2535;
+      --border: #2a3248;
+      --text: #e8ecf4;
+      --muted: #7b859e;
+      --green: #22c55e;
+      --yellow: #f59e0b;
+      --orange: #f97316;
+      --red: #ef4444;
+      --blue: #3b82f6;
+      --purple: #a855f7;
+      --accent: #38bdf8;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding-bottom: 24px;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── Header ── */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 20px 20px 12px;
+    }
+
+    .logo {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+
+    .logo span { color: var(--accent); }
+
+    .status-pill {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: var(--muted);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 4px 12px;
+      transition: all 0.3s;
+    }
+
+    .status-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--muted);
+      transition: background 0.3s;
+    }
+
+    .status-pill.active .status-dot { background: var(--green); box-shadow: 0 0 6px var(--green); }
+    .status-pill.active { color: var(--green); border-color: var(--green); }
+
+    /* ── Score circle ── */
+    .score-section {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 12px 20px 20px;
+    }
+
+    .score-ring-wrap {
+      position: relative;
+      width: 160px; height: 160px;
+    }
+
+    .score-ring-wrap svg {
+      width: 160px; height: 160px;
+      transform: rotate(-90deg);
+    }
+
+    .ring-bg { fill: none; stroke: var(--border); stroke-width: 10; }
+
+    .ring-fg {
+      fill: none;
+      stroke-width: 10;
+      stroke-linecap: round;
+      stroke-dasharray: 408;
+      stroke-dashoffset: 0;
+      transition: stroke-dashoffset 0.6s cubic-bezier(.4,0,.2,1), stroke 0.6s;
+    }
+
+    .score-val {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+    }
+
+    .score-num {
+      font-size: 42px;
+      font-weight: 800;
+      line-height: 1;
+      transition: color 0.4s;
+    }
+
+    .score-label {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 4px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .score-grade {
+      margin-top: 10px;
+      font-size: 18px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      transition: color 0.4s;
+    }
+
+    /* ── Axis cards ── */
+    .cards {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 10px;
+      padding: 0 16px;
+    }
+
+    .axis-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 14px 10px 12px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      position: relative;
+      overflow: hidden;
+      transition: border-color 0.3s;
+    }
+
+    .axis-card::after {
+      content: '';
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      height: 3px;
+      border-radius: 0 0 16px 16px;
+      background: var(--color);
+      opacity: 0.7;
+      transition: background 0.3s;
+    }
+
+    .axis-icon { font-size: 20px; line-height: 1; }
+    .axis-label {
+      font-size: 11px;
+      color: var(--muted);
+      text-align: center;
+      line-height: 1.2;
+    }
+
+    .axis-g {
+      font-size: 22px;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      transition: color 0.3s;
+    }
+
+    .axis-bar-wrap {
+      width: 100%;
+      height: 4px;
+      background: var(--border);
+      border-radius: 99px;
+      overflow: hidden;
+    }
+
+    .axis-bar {
+      height: 100%;
+      border-radius: 99px;
+      background: var(--color);
+      transition: width 0.2s, background 0.3s;
+      width: 0%;
+    }
+
+    .axis-max {
+      font-size: 10px;
+      color: var(--muted);
+    }
+
+    /* colour per axis */
+    .card-x { --color: var(--blue); }
+    .card-y { --color: var(--purple); }
+    .card-z { --color: var(--accent); }
+
+    /* ── Event log ── */
+    .section {
+      padding: 20px 16px 0;
+    }
+
+    .section-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 12px;
+    }
+
+    /* ── Mini waveform canvas ── */
+    .wave-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 14px;
+      overflow: hidden;
+    }
+
+    .wave-legend {
+      display: flex;
+      gap: 14px;
+      margin-bottom: 10px;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    .legend-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+    }
+
+    canvas#wave { width: 100%; height: 80px; display: block; border-radius: 8px; }
+
+    /* ── Event list ── */
+    .event-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .event-item {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 13px;
+      animation: slideIn 0.25s ease;
+    }
+
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(-8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .event-badge {
+      padding: 2px 8px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .event-time { margin-left: auto; color: var(--muted); font-size: 11px; }
+
+    .badge-smooth  { background: rgba(34,197,94,0.18);  color: var(--green);  }
+    .badge-mild    { background: rgba(245,158,11,0.18); color: var(--yellow); }
+    .badge-harsh   { background: rgba(249,115,22,0.18); color: var(--orange); }
+    .badge-extreme { background: rgba(239,68,68,0.18);  color: var(--red);    }
+
+    /* ── Stats row ── */
+    .stats-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 10px;
+    }
+
+    .stat-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 14px 10px;
+      text-align: center;
+    }
+
+    .stat-val {
+      font-size: 20px;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .stat-lbl {
+      font-size: 10px;
+      color: var(--muted);
+      margin-top: 3px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    /* ── Start button ── */
+    .btn-wrap {
+      padding: 24px 16px 0;
+    }
+
+    button#startBtn {
+      width: 100%;
+      padding: 16px;
+      border-radius: 14px;
+      border: none;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      background: linear-gradient(135deg, var(--accent), var(--blue));
+      color: #fff;
+      letter-spacing: 0.04em;
+      transition: opacity 0.2s, transform 0.1s;
+      box-shadow: 0 4px 24px rgba(56,189,248,0.25);
+    }
+
+    button#startBtn:active { transform: scale(0.97); opacity: 0.9; }
+    button#startBtn.stop {
+      background: linear-gradient(135deg, #ef4444, #b91c1c);
+      box-shadow: 0 4px 24px rgba(239,68,68,0.25);
+    }
+
+    /* ── Permission note ── */
+    .note {
+      margin: 12px 16px 0;
+      font-size: 11px;
+      color: var(--muted);
+      text-align: center;
+      line-height: 1.6;
+    }
+
+    /* ── Alert flash ── */
+    .alert-flash {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      height: 4px;
+      background: var(--red);
+      transform: scaleX(0);
+      transform-origin: left;
+      transition: transform 0.15s, opacity 0.5s;
+      opacity: 0;
+      pointer-events: none;
+      z-index: 999;
+    }
+
+    .alert-flash.show {
+      transform: scaleX(1);
+      opacity: 1;
+    }
+
+    /* ── Tilt visualizer ── */
+    .tilt-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .tilt-arena {
+      width: 140px; height: 140px;
+      border-radius: 50%;
+      border: 2px solid var(--border);
+      position: relative;
+      background: radial-gradient(circle at center, rgba(56,189,248,0.05), transparent 70%);
+    }
+
+    .tilt-crosshair {
+      position: absolute;
+      top: 50%; left: 50%;
+      width: 100%; height: 1px;
+      background: var(--border);
+      transform: translateX(-50%);
+    }
+
+    .tilt-crosshair.v {
+      width: 1px; height: 100%;
+      transform: translateY(-50%);
+      top: 0; left: 50%;
+    }
+
+    .tilt-ball {
+      position: absolute;
+      width: 20px; height: 20px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 12px var(--accent);
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      transition: top 0.12s ease, left 0.12s ease, background 0.3s;
+    }
+  </style>
+</head>
+<body>
+
+<div class="alert-flash" id="alertFlash"></div>
+
+<!-- Header -->
+<header>
+  <div class="logo">撒了<span>么</span></div>
+  <div class="status-pill" id="statusPill">
+    <div class="status-dot"></div>
+    <span id="statusText">未启动</span>
+  </div>
+</header>
+
+<!-- Start Button -->
+<div class="btn-wrap">
+  <button id="startBtn" onclick="toggleSensor()">开始检测</button>
+</div>
+<p class="note" id="permNote">iOS 设备需点击按钮授权传感器权限 · Android 自动启动</p>
+
+<!-- Score -->
+<div class="score-section">
+  <div class="score-ring-wrap">
+    <svg viewBox="0 0 160 160">
+      <circle class="ring-bg" cx="80" cy="80" r="65" />
+      <circle class="ring-fg" id="ringFg" cx="80" cy="80" r="65" />
+    </svg>
+    <div class="score-val">
+      <div class="score-num" id="scoreNum">--</div>
+      <div class="score-label">平稳指数</div>
+    </div>
+  </div>
+  <div class="score-grade" id="scoreGrade">等待数据…</div>
+</div>
+
+<!-- Axis G cards -->
+<div class="cards">
+  <div class="axis-card card-x">
+    <div class="axis-icon">↔️</div>
+    <div class="axis-label">左右<br>横向</div>
+    <div class="axis-g" id="gx">0.00<small style="font-size:11px">G</small></div>
+    <div class="axis-bar-wrap"><div class="axis-bar" id="barX"></div></div>
+    <div class="axis-max" id="maxX">峰值 0.00G</div>
+  </div>
+  <div class="axis-card card-y">
+    <div class="axis-icon">↕️</div>
+    <div class="axis-label">前后<br>纵向</div>
+    <div class="axis-g" id="gy">0.00<small style="font-size:11px">G</small></div>
+    <div class="axis-bar-wrap"><div class="axis-bar" id="barY"></div></div>
+    <div class="axis-max" id="maxY">峰值 0.00G</div>
+  </div>
+  <div class="axis-card card-z">
+    <div class="axis-icon">⬆️</div>
+    <div class="axis-label">上下<br>垂直</div>
+    <div class="axis-g" id="gz">0.00<small style="font-size:11px">G</small></div>
+    <div class="axis-bar-wrap"><div class="axis-bar" id="barZ"></div></div>
+    <div class="axis-max" id="maxZ">峰值 0.00G</div>
+  </div>
+</div>
+
+<!-- Waveform + Tilt -->
+<div class="section">
+  <div class="section-title">实时波形</div>
+  <div class="wave-card">
+    <div class="wave-legend">
+      <div class="legend-item"><div class="legend-dot" style="background:var(--blue)"></div>左右 X</div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--purple)"></div>前后 Y</div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--accent)"></div>上下 Z</div>
+    </div>
+    <canvas id="wave"></canvas>
+  </div>
+</div>
+
+<!-- Tilt ball -->
+<div class="section">
+  <div class="section-title">倾斜可视化</div>
+  <div class="tilt-card">
+    <div class="tilt-arena">
+      <div class="tilt-crosshair"></div>
+      <div class="tilt-crosshair v"></div>
+      <div class="tilt-ball" id="tiltBall"></div>
+    </div>
+    <div style="font-size:11px;color:var(--muted)">圆心 = 完美水平，球偏移越大越剧烈</div>
+  </div>
+</div>
+
+<!-- Session stats -->
+<div class="section">
+  <div class="section-title">本次行程统计</div>
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="stat-val" id="statEvents">0</div>
+      <div class="stat-lbl">震动次数</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-val" id="statPeak">0.00</div>
+      <div class="stat-lbl">峰值 G</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-val" id="statTime">00:00</div>
+      <div class="stat-lbl">行程时长</div>
+    </div>
+  </div>
+</div>
+
+<!-- Event log -->
+<div class="section">
+  <div class="section-title">事件记录</div>
+  <div class="event-list" id="eventList">
+    <div class="event-item" style="color:var(--muted);justify-content:center;font-size:13px">
+      暂无事件 · 等待传感器数据
+    </div>
+  </div>
+</div>
+
+<script>
+  /* ─── Constants ─── */
+  const G = 9.80665;
+  const WAVE_PTS = 120;
+  const MAX_EVENTS = 30;
+  const THRESHOLDS = {
+    mild:    0.20,   // > 0.20G  yellow
+    harsh:   0.40,   // > 0.40G  orange
+    extreme: 0.70,   // > 0.70G  red
+  };
+
+  /* ─── State ─── */
+  let running = false;
+  let startTime = null;
+  let sessionEvents = 0;
+  let sessionPeak = 0;
+  let timerInterval = null;
+  let lastEventTime = 0;
+  let frameId = null;
+
+  const history = { x: new Array(WAVE_PTS).fill(0), y: new Array(WAVE_PTS).fill(0), z: new Array(WAVE_PTS).fill(0) };
+  const maxG = { x: 0, y: 0, z: 0 };
+  let current = { x: 0, y: 0, z: 0 };
+
+  /* ─── Score smoothing ─── */
+  const scoreWindow = new Array(60).fill(0);
+  let scorePtr = 0;
+
+  /* ─── DOM refs ─── */
+  const ringFg   = document.getElementById('ringFg');
+  const scoreNum = document.getElementById('scoreNum');
+  const scoreGrade = document.getElementById('scoreGrade');
+  const gxEl = document.getElementById('gx');
+  const gyEl = document.getElementById('gy');
+  const gzEl = document.getElementById('gz');
+  const barX = document.getElementById('barX');
+  const barY = document.getElementById('barY');
+  const barZ = document.getElementById('barZ');
+  const maxXEl = document.getElementById('maxX');
+  const maxYEl = document.getElementById('maxY');
+  const maxZEl = document.getElementById('maxZ');
+  const tiltBall = document.getElementById('tiltBall');
+  const alertFlash = document.getElementById('alertFlash');
+  const statusPill = document.getElementById('statusPill');
+  const statusText = document.getElementById('statusText');
+  const statEvents = document.getElementById('statEvents');
+  const statPeak   = document.getElementById('statPeak');
+  const statTime   = document.getElementById('statTime');
+  const eventList  = document.getElementById('eventList');
+  const startBtn   = document.getElementById('startBtn');
+
+  /* ─── Canvas ─── */
+  const canvas = document.getElementById('wave');
+  const ctx = canvas.getContext('2d');
+
+  function resizeCanvas() {
+    const r = canvas.parentElement.getBoundingClientRect();
+    canvas.width  = r.width * window.devicePixelRatio;
+    canvas.height = 80 * window.devicePixelRatio;
+    canvas.style.height = '80px';
+  }
+  resizeCanvas();
+  window.addEventListener('resize', resizeCanvas);
+
+  /* ─── Colour helpers ─── */
+  function gColour(g) {
+    if (g >= THRESHOLDS.extreme) return 'var(--red)';
+    if (g >= THRESHOLDS.harsh)   return 'var(--orange)';
+    if (g >= THRESHOLDS.mild)    return 'var(--yellow)';
+    return 'var(--green)';
+  }
+
+  function scoreColour(s) {
+    if (s >= 90) return 'var(--green)';
+    if (s >= 70) return 'var(--yellow)';
+    if (s >= 50) return 'var(--orange)';
+    return 'var(--red)';
+  }
+
+  function gradeLabel(s) {
+    if (s >= 90) return '🟢 非常平稳';
+    if (s >= 70) return '🟡 较为平稳';
+    if (s >= 50) return '🟠 有些颠簸';
+    return '🔴 驾驶粗暴';
+  }
+
+  /* ─── Draw waveform ─── */
+  function drawWave() {
+    const w = canvas.width, h = canvas.height;
+    ctx.clearRect(0, 0, w, h);
+
+    // Grid lines
+    ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+    ctx.lineWidth = 1;
+    [0.25, 0.5, 0.75].forEach(r => {
+      ctx.beginPath(); ctx.moveTo(0, h * r); ctx.lineTo(w, h * r); ctx.stroke();
+    });
+
+    const colours = ['#3b82f6', '#a855f7', '#38bdf8'];
+    const axes = [history.x, history.y, history.z];
+    const maxV = 1.5; // 1.5G full scale
+
+    axes.forEach((arr, i) => {
+      ctx.beginPath();
+      ctx.strokeStyle = colours[i];
+      ctx.lineWidth = 1.5 * window.devicePixelRatio;
+      ctx.lineJoin = 'round';
+      arr.forEach((v, j) => {
+        const x = (j / (WAVE_PTS - 1)) * w;
+        const y = h / 2 - (v / maxV) * (h / 2 - 6 * window.devicePixelRatio);
+        j === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+      });
+      ctx.stroke();
+    });
+
+    frameId = requestAnimationFrame(drawWave);
+  }
+
+  /* ─── Motion handler ─── */
+  function onMotion(e) {
+    const accel = e.accelerationIncludingGravity || e.acceleration || {};
+    // Remove gravity component estimation: use raw values divided by G
+    // For simplicity and reliability we use accelerationIncludingGravity
+    // and let users interpret relative changes. We subtract ~1G from Z for vertical baseline.
+    const rawX = accel.x ?? 0;
+    const rawY = accel.y ?? 0;
+    const rawZ = accel.z ?? 0;
+
+    // Convert m/s² → G, take absolute for magnitude display
+    const gx = Math.abs(rawX / G);
+    const gy = Math.abs(rawY / G);
+    // For vertical axis remove gravity offset (phone ~1G at rest)
+    // Use acceleration without gravity if available, else subtract 1G
+    let gz;
+    if (e.acceleration && e.acceleration.z != null) {
+      gz = Math.abs(e.acceleration.z / G);
+    } else {
+      gz = Math.abs((rawZ / G) - Math.sign(rawZ) * 1.0);
+    }
+
+    current = { x: gx, y: gy, z: gz };
+
+    // Update history ringbuffer
+    history.x.shift(); history.x.push(gx);
+    history.y.shift(); history.y.push(gy);
+    history.z.shift(); history.z.push(gz);
+
+    // Per-axis max
+    if (gx > maxG.x) { maxG.x = gx; maxXEl.textContent = `峰值 ${gx.toFixed(2)}G`; }
+    if (gy > maxG.y) { maxG.y = gy; maxYEl.textContent = `峰值 ${gy.toFixed(2)}G`; }
+    if (gz > maxG.z) { maxG.z = gz; maxZEl.textContent = `峰值 ${gz.toFixed(2)}G`; }
+
+    // Combined max
+    const combined = Math.max(gx, gy, gz);
+    if (combined > sessionPeak) {
+      sessionPeak = combined;
+      statPeak.textContent = combined.toFixed(2);
+    }
+
+    // Update axis cards
+    updateAxisCard(gxEl, barX, gx);
+    updateAxisCard(gyEl, barY, gy);
+    updateAxisCard(gzEl, barZ, gz);
+
+    // Score: penalise by combined G
+    const penalty = Math.min(combined * 60, 60);
+    scoreWindow[scorePtr % 60] = penalty;
+    scorePtr++;
+    const avgPenalty = scoreWindow.reduce((a, b) => a + b, 0) / 60;
+    const score = Math.max(0, Math.round(100 - avgPenalty));
+
+    updateScore(score);
+
+    // Tilt ball (X=lateral, Y=longitudinal mapped to screen)
+    const bx = Math.max(-1, Math.min(1, rawX / (G * 0.5)));
+    const by = Math.max(-1, Math.min(1, rawY / (G * 0.5)));
+    const arenaR = 60; // half of 140px - ball radius 10
+    tiltBall.style.left = `calc(50% + ${bx * arenaR}px)`;
+    tiltBall.style.top  = `calc(50% + ${-by * arenaR}px)`;
+    tiltBall.style.background = gColour(combined);
+    tiltBall.style.boxShadow  = `0 0 12px ${gColour(combined)}`;
+
+    // Event detection (debounce 800ms)
+    const now = Date.now();
+    if (combined > THRESHOLDS.mild && now - lastEventTime > 800) {
+      lastEventTime = now;
+      logEvent(combined, gx, gy, gz);
+      sessionEvents++;
+      statEvents.textContent = sessionEvents;
+      flashAlert(combined);
+    }
+  }
+
+  function updateAxisCard(numEl, barEl, g) {
+    const txt = g.toFixed(2);
+    numEl.innerHTML = `${txt}<small style="font-size:11px">G</small>`;
+    numEl.style.color = gColour(g);
+    const pct = Math.min(100, (g / 1.0) * 100);
+    barEl.style.width = pct + '%';
+    barEl.style.background = gColour(g);
+  }
+
+  function updateScore(s) {
+    const circumference = 408; // 2π×65
+    const offset = circumference - (s / 100) * circumference;
+    ringFg.style.strokeDashoffset = offset;
+    ringFg.style.stroke = scoreColour(s);
+    scoreNum.textContent = s;
+    scoreNum.style.color = scoreColour(s);
+    scoreGrade.textContent = gradeLabel(s);
+    scoreGrade.style.color = scoreColour(s);
+  }
+
+  function flashAlert(g) {
+    if (g < THRESHOLDS.harsh) return;
+    alertFlash.style.background = g >= THRESHOLDS.extreme ? 'var(--red)' : 'var(--orange)';
+    alertFlash.classList.add('show');
+    setTimeout(() => alertFlash.classList.remove('show'), 600);
+  }
+
+  function logEvent(combined, gx, gy, gz) {
+    const placeholder = eventList.querySelector('[style*="justify-content"]');
+    if (placeholder) placeholder.remove();
+
+    let cls, label;
+    if (combined >= THRESHOLDS.extreme) { cls = 'badge-extreme'; label = '剧烈震动'; }
+    else if (combined >= THRESHOLDS.harsh) { cls = 'badge-harsh'; label = '急加速/急刹车'; }
+    else { cls = 'badge-mild'; label = '轻微颠簸'; }
+
+    const dir = gx > gy && gx > gz ? '横向' : gy > gz ? '纵向' : '垂直';
+    const now = new Date();
+    const timeStr = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+
+    const item = document.createElement('div');
+    item.className = 'event-item';
+    item.innerHTML = `
+      <span class="event-badge ${cls}">${label}</span>
+      <span style="color:var(--text)">${dir} ${combined.toFixed(2)}G</span>
+      <span class="event-time">${timeStr}</span>
+    `;
+    eventList.insertBefore(item, eventList.firstChild);
+
+    // trim list
+    while (eventList.children.length > MAX_EVENTS) {
+      eventList.removeChild(eventList.lastChild);
+    }
+  }
+
+  /* ─── Timer ─── */
+  function startTimer() {
+    startTime = Date.now();
+    timerInterval = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - startTime) / 1000);
+      const m = String(Math.floor(elapsed / 60)).padStart(2, '0');
+      const s = String(elapsed % 60).padStart(2, '0');
+      statTime.textContent = `${m}:${s}`;
+    }, 1000);
+  }
+
+  function stopTimer() {
+    if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+  }
+
+  /* ─── Toggle sensor ─── */
+  async function toggleSensor() {
+    if (running) {
+      stopSensor();
+    } else {
+      await startSensor();
+    }
+  }
+
+  async function startSensor() {
+    // Request permission on iOS 13+
+    if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
+      try {
+        const result = await DeviceMotionEvent.requestPermission();
+        if (result !== 'granted') {
+          alert('需要传感器权限才能使用 · 请在系统设置中允许');
+          return;
+        }
+      } catch (err) {
+        alert('传感器权限请求失败：' + err.message);
+        return;
+      }
+    }
+
+    if (typeof DeviceMotionEvent === 'undefined') {
+      alert('您的浏览器不支持加速度传感器。\n请使用手机浏览器（Safari / Chrome）打开。');
+      return;
+    }
+
+    window.addEventListener('devicemotion', onMotion);
+    running = true;
+    startTimer();
+    frameId = requestAnimationFrame(drawWave);
+
+    startBtn.textContent = '停止检测';
+    startBtn.classList.add('stop');
+    statusPill.classList.add('active');
+    statusText.textContent = '检测中';
+    document.getElementById('permNote').style.display = 'none';
+  }
+
+  function stopSensor() {
+    window.removeEventListener('devicemotion', onMotion);
+    running = false;
+    stopTimer();
+    if (frameId) { cancelAnimationFrame(frameId); frameId = null; }
+
+    startBtn.textContent = '开始检测';
+    startBtn.classList.remove('stop');
+    statusPill.classList.remove('active');
+    statusText.textContent = '已停止';
+
+    // Final score freeze
+    scoreGrade.textContent = scoreGrade.textContent.replace('等待数据…', '-- 等待数据');
+  }
+
+  /* ─── Demo mode if no sensor (desktop preview) ─── */
+  function demoMode() {
+    let t = 0;
+    setInterval(() => {
+      if (!running) return;
+      t += 0.05;
+      const fakeEvent = {
+        accelerationIncludingGravity: {
+          x: Math.sin(t * 0.7) * G * 0.15 + (Math.random() - 0.5) * G * 0.05,
+          y: Math.cos(t * 0.5) * G * 0.12 + (Math.random() - 0.5) * G * 0.04,
+          z: G + Math.sin(t * 1.2) * G * 0.08,
+        },
+        acceleration: {
+          x: Math.sin(t * 0.7) * G * 0.15,
+          y: Math.cos(t * 0.5) * G * 0.12,
+          z: Math.sin(t * 1.2) * G * 0.08,
+        }
+      };
+      onMotion(fakeEvent);
+    }, 50);
+  }
+
+  // On desktop (no real sensor), run demo automatically for preview
+  if (!/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)) {
+    document.getElementById('permNote').textContent = '🖥️ 桌面预览模式 · 使用模拟数据（请在手机上使用真实传感器）';
+    demoMode();
+    // Auto start
+    setTimeout(() => {
+      running = true;
+      startTimer();
+      frameId = requestAnimationFrame(drawWave);
+      startBtn.textContent = '停止检测';
+      startBtn.classList.add('stop');
+      statusPill.classList.add('active');
+      statusText.textContent = '演示中';
+    }, 300);
+  }
+</script>
+</body>
+</html>
