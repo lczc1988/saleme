@@ -413,6 +413,54 @@
       transform: translate(-50%, -50%);
       transition: top 0.12s ease, left 0.12s ease, background 0.3s;
     }
+
+    /* ── Standards card ── */
+    .std-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .std-grade {
+      border: 1px solid;
+      border-radius: 14px;
+      padding: 12px;
+      text-align: center;
+    }
+
+    .std-table-wrap {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 12px;
+      overflow-x: auto;
+    }
+
+    .std-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+
+    .std-table th {
+      color: var(--muted);
+      font-weight: 600;
+      padding: 4px 8px;
+      text-align: center;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .std-table td {
+      padding: 6px 8px;
+      text-align: center;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+      color: var(--text);
+    }
+
+    .std-table tr:last-child td { border-bottom: none; }
+    .std-table td:first-child { text-align: left; color: var(--muted); font-weight: 500; }
+    .std-table small { font-size: 9px; opacity: 0.7; }
   </style>
 </head>
 <body>
@@ -519,6 +567,49 @@
   </div>
 </div>
 
+<!-- Standards reference -->
+<div class="section">
+  <div class="section-title">评分标准</div>
+  <div class="std-grid">
+    <div class="std-grade" style="background:rgba(34,197,94,0.12);border-color:rgba(34,197,94,0.3)">
+      <div style="font-size:22px;font-weight:800;color:var(--green)">90–100</div>
+      <div style="font-size:13px;font-weight:600;color:var(--green)">优秀</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:2px">☕ 咖啡几乎没洒</div>
+    </div>
+    <div class="std-grade" style="background:rgba(96,165,250,0.12);border-color:rgba(96,165,250,0.3)">
+      <div style="font-size:22px;font-weight:800;color:#60a5fa">80–89</div>
+      <div style="font-size:13px;font-weight:600;color:#60a5fa">良好</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:2px">☕ 只洒了一点点</div>
+    </div>
+    <div class="std-grade" style="background:rgba(245,158,11,0.12);border-color:rgba(245,158,11,0.3)">
+      <div style="font-size:22px;font-weight:800;color:var(--yellow)">60–79</div>
+      <div style="font-size:13px;font-weight:600;color:var(--yellow)">一般</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:2px">☕ 咖啡洒了不少</div>
+    </div>
+    <div class="std-grade" style="background:rgba(239,68,68,0.12);border-color:rgba(239,68,68,0.3)">
+      <div style="font-size:22px;font-weight:800;color:var(--red)">0–59</div>
+      <div style="font-size:13px;font-weight:600;color:var(--red)">较差</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:2px">☕ 咖啡全洒了…</div>
+    </div>
+  </div>
+  <div class="std-table-wrap">
+    <table class="std-table">
+      <thead>
+        <tr><th>事件</th><th style="color:var(--yellow)">L1 轻微</th><th style="color:var(--orange)">L2 中等</th><th style="color:var(--red)">L3 严重</th><th>权重</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>急减速</td><td>0.226G</td><td>0.305G</td><td>0.386G</td><td>×1.5</td></tr>
+        <tr><td>急加速</td><td>0.214G</td><td>0.242G</td><td>0.317G</td><td>×0.75</td></tr>
+        <tr><td>急转向</td><td>0.225G</td><td>0.311G</td><td>0.395G</td><td>×0.8</td></tr>
+        <tr><td>顿挫</td><td>0.293<small>G/s</small></td><td>0.383<small>G/s</small></td><td>0.510<small>G/s</small></td><td>×0.5</td></tr>
+        <tr><td>摆动</td><td>0.293<small>G/s</small></td><td>0.383<small>G/s</small></td><td>0.510<small>G/s</small></td><td>×0.5</td></tr>
+        <tr><td>颠簸</td><td>0.300G</td><td>0.450G</td><td>0.600G</td><td>×0.2</td></tr>
+      </tbody>
+    </table>
+    <div style="font-size:10px;color:var(--muted);margin-top:8px;text-align:center">扣分 = 等级 × 权重，满分100分</div>
+  </div>
+</div>
+
 <!-- Event log -->
 <div class="section">
   <div class="section-title">事件记录</div>
@@ -530,15 +621,22 @@
 </div>
 
 <script>
-  /* ─── Constants ─── */
+  /* ─── Standards (based on Xpeng driving comfort spec) ─── */
   const G = 9.80665;
   const WAVE_PTS = 120;
   const MAX_EVENTS = 30;
-  const THRESHOLDS = {
-    mild:    0.20,   // > 0.20G  yellow
-    harsh:   0.40,   // > 0.40G  orange
-    extreme: 0.70,   // > 0.70G  red
+
+  // thr: [L1, L2, L3] in G (or G/s for jerk events)
+  // weight: deduction per level = level × weight
+  const EVENTS = {
+    braking:   { label: '急减速', thr: [0.226, 0.305, 0.386], weight: 1.50 },
+    accel:     { label: '急加速', thr: [0.214, 0.242, 0.317], weight: 0.75 },
+    cornering: { label: '急转向', thr: [0.225, 0.311, 0.395], weight: 0.80 },
+    jerk:      { label: '顿挫',   thr: [0.293, 0.383, 0.510], weight: 0.50 },
+    sway:      { label: '摆动',   thr: [0.293, 0.383, 0.510], weight: 0.50 },
+    bump:      { label: '颠簸',   thr: [0.300, 0.450, 0.600], weight: 0.20 },
   };
+  const DEBOUNCE_MS = 1200;
 
   /* ─── State ─── */
   let running = false;
@@ -546,16 +644,19 @@
   let sessionEvents = 0;
   let sessionPeak = 0;
   let timerInterval = null;
-  let lastEventTime = 0;
   let frameId = null;
+  let totalDeduction = 0;
 
   const history = { x: new Array(WAVE_PTS).fill(0), y: new Array(WAVE_PTS).fill(0), z: new Array(WAVE_PTS).fill(0) };
   const maxG = { x: 0, y: 0, z: 0 };
-  let current = { x: 0, y: 0, z: 0 };
 
-  /* ─── Score smoothing ─── */
-  const scoreWindow = new Array(60).fill(0);
-  let scorePtr = 0;
+  // Per-event debounce timestamps
+  const lastEvtTime = {};
+  Object.keys(EVENTS).forEach(k => lastEvtTime[k] = 0);
+
+  // Jerk buffers: [{t, v}] — 400ms rolling window
+  const jerkBufY = [];
+  const jerkBufX = [];
 
   /* ─── DOM refs ─── */
   const ringFg   = document.getElementById('ringFg');
@@ -595,24 +696,51 @@
 
   /* ─── Colour helpers ─── */
   function gColour(g) {
-    if (g >= THRESHOLDS.extreme) return 'var(--red)';
-    if (g >= THRESHOLDS.harsh)   return 'var(--orange)';
-    if (g >= THRESHOLDS.mild)    return 'var(--yellow)';
+    if (g >= 0.39) return 'var(--red)';
+    if (g >= 0.28) return 'var(--orange)';
+    if (g >= 0.20) return 'var(--yellow)';
     return 'var(--green)';
   }
 
   function scoreColour(s) {
     if (s >= 90) return 'var(--green)';
-    if (s >= 70) return 'var(--yellow)';
-    if (s >= 50) return 'var(--orange)';
+    if (s >= 80) return '#60a5fa';
+    if (s >= 60) return 'var(--yellow)';
     return 'var(--red)';
   }
 
   function gradeLabel(s) {
-    if (s >= 90) return '🟢 非常平稳';
-    if (s >= 70) return '🟡 较为平稳';
-    if (s >= 50) return '🟠 有些颠簸';
-    return '🔴 驾驶粗暴';
+    if (s >= 90) return '☕ 优秀 · 咖啡几乎没洒';
+    if (s >= 80) return '☕ 良好 · 只洒了一点点';
+    if (s >= 60) return '☕ 一般 · 咖啡洒了不少';
+    return '☕ 较差 · 咖啡全洒了…';
+  }
+
+  function levelClass(lv) {
+    return ['badge-mild', 'badge-harsh', 'badge-extreme'][lv - 1] || 'badge-mild';
+  }
+
+  /* ─── Classify G/jerk value against event thresholds ─── */
+  function classify(val, thr) {
+    if (val >= thr[2]) return 3;
+    if (val >= thr[1]) return 2;
+    if (val >= thr[0]) return 1;
+    return 0;
+  }
+
+  /* ─── Jerk calculation (peak Δaccel over 400ms window) ─── */
+  function pushJerk(buf, t, v) {
+    buf.push({ t, v });
+    const cutoff = t - 400;
+    while (buf.length > 1 && buf[0].t < cutoff) buf.shift();
+  }
+
+  function peakJerk(buf) {
+    if (buf.length < 2) return 0;
+    let hi = -Infinity, lo = Infinity;
+    buf.forEach(p => { if (p.v > hi) hi = p.v; if (p.v < lo) lo = p.v; });
+    const span = (buf[buf.length - 1].t - buf[0].t) / 1000;
+    return span < 0.05 ? 0 : (hi - lo) / span; // G/s
   }
 
   /* ─── Draw waveform ─── */
@@ -649,19 +777,15 @@
 
   /* ─── Motion handler ─── */
   function onMotion(e) {
-    const accel = e.accelerationIncludingGravity || e.acceleration || {};
-    // Remove gravity component estimation: use raw values divided by G
-    // For simplicity and reliability we use accelerationIncludingGravity
-    // and let users interpret relative changes. We subtract ~1G from Z for vertical baseline.
-    const rawX = accel.x ?? 0;
-    const rawY = accel.y ?? 0;
-    const rawZ = accel.z ?? 0;
+    const raw = e.accelerationIncludingGravity || e.acceleration || {};
+    const rawX = raw.x ?? 0;
+    const rawY = raw.y ?? 0;
+    const rawZ = raw.z ?? 0;
 
-    // Convert m/s² → G, take absolute for magnitude display
-    const gx = Math.abs(rawX / G);
-    const gy = Math.abs(rawY / G);
-    // For vertical axis remove gravity offset (phone ~1G at rest)
-    // Use acceleration without gravity if available, else subtract 1G
+    const gxAbs  = Math.abs(rawX / G);
+    const gyAbs  = Math.abs(rawY / G);
+    const gySign = rawY / G;  // signed: positive=fwd accel, negative=braking
+
     let gz;
     if (e.acceleration && e.acceleration.z != null) {
       gz = Math.abs(e.acceleration.z / G);
@@ -669,65 +793,68 @@
       gz = Math.abs((rawZ / G) - Math.sign(rawZ) * 1.0);
     }
 
-    current = { x: gx, y: gy, z: gz };
-
-    // Update history ringbuffer
-    history.x.shift(); history.x.push(gx);
-    history.y.shift(); history.y.push(gy);
+    history.x.shift(); history.x.push(gxAbs);
+    history.y.shift(); history.y.push(gyAbs);
     history.z.shift(); history.z.push(gz);
 
-    // Per-axis max
-    if (gx > maxG.x) { maxG.x = gx; maxXEl.textContent = `峰值 ${gx.toFixed(2)}G`; }
-    if (gy > maxG.y) { maxG.y = gy; maxYEl.textContent = `峰值 ${gy.toFixed(2)}G`; }
-    if (gz > maxG.z) { maxG.z = gz; maxZEl.textContent = `峰值 ${gz.toFixed(2)}G`; }
+    if (gxAbs > maxG.x) { maxG.x = gxAbs; maxXEl.textContent = `峰值 ${gxAbs.toFixed(2)}G`; }
+    if (gyAbs > maxG.y) { maxG.y = gyAbs; maxYEl.textContent = `峰值 ${gyAbs.toFixed(2)}G`; }
+    if (gz    > maxG.z) { maxG.z = gz;    maxZEl.textContent = `峰值 ${gz.toFixed(2)}G`; }
 
-    // Combined max
-    const combined = Math.max(gx, gy, gz);
+    const combined = Math.max(gxAbs, gyAbs, gz);
     if (combined > sessionPeak) {
       sessionPeak = combined;
       statPeak.textContent = combined.toFixed(2);
     }
 
-    // Update axis cards
-    updateAxisCard(gxEl, barX, gx);
-    updateAxisCard(gyEl, barY, gy);
+    updateAxisCard(gxEl, barX, gxAbs);
+    updateAxisCard(gyEl, barY, gyAbs);
     updateAxisCard(gzEl, barZ, gz);
 
-    // Score: penalise by combined G
-    const penalty = Math.min(combined * 60, 60);
-    scoreWindow[scorePtr % 60] = penalty;
-    scorePtr++;
-    const avgPenalty = scoreWindow.reduce((a, b) => a + b, 0) / 60;
-    const score = Math.max(0, Math.round(100 - avgPenalty));
-
-    updateScore(score);
-
-    // Tilt ball (X=lateral, Y=longitudinal mapped to screen)
+    // Tilt ball
     const bx = Math.max(-1, Math.min(1, rawX / (G * 0.5)));
     const by = Math.max(-1, Math.min(1, rawY / (G * 0.5)));
-    const arenaR = 60; // half of 140px - ball radius 10
-    tiltBall.style.left = `calc(50% + ${bx * arenaR}px)`;
-    tiltBall.style.top  = `calc(50% + ${-by * arenaR}px)`;
+    tiltBall.style.left       = `calc(50% + ${bx * 60}px)`;
+    tiltBall.style.top        = `calc(50% + ${-by * 60}px)`;
     tiltBall.style.background = gColour(combined);
     tiltBall.style.boxShadow  = `0 0 12px ${gColour(combined)}`;
 
-    // Event detection (debounce 800ms)
+    // Jerk buffers
     const now = Date.now();
-    if (combined > THRESHOLDS.mild && now - lastEventTime > 800) {
-      lastEventTime = now;
-      logEvent(combined, gx, gy, gz);
-      sessionEvents++;
-      statEvents.textContent = sessionEvents;
-      flashAlert(combined);
-    }
+    pushJerk(jerkBufY, now, gySign);
+    pushJerk(jerkBufX, now, rawX / G);
+    const jerkY = peakJerk(jerkBufY);
+    const jerkX = peakJerk(jerkBufX);
+
+    // ─ Event detection ─
+    tryEvent('braking',   gySign < 0 ? -gySign : 0, now);
+    tryEvent('accel',     gySign > 0 ?  gySign : 0, now);
+    tryEvent('cornering', gxAbs,                    now);
+    tryEvent('jerk',      jerkY,                    now);
+    tryEvent('sway',      jerkX,                    now);
+    tryEvent('bump',      gz,                       now);
+
+    updateScore(Math.max(0, Math.round(100 - totalDeduction)));
+  }
+
+  function tryEvent(key, val, now) {
+    const def = EVENTS[key];
+    const lv  = classify(val, def.thr);
+    if (lv === 0) return;
+    if (now - lastEvtTime[key] < DEBOUNCE_MS) return;
+    lastEvtTime[key] = now;
+    const deduction = lv * def.weight;
+    totalDeduction += deduction;
+    sessionEvents++;
+    statEvents.textContent = sessionEvents;
+    logEvent(def.label, lv, val, deduction);
+    if (lv >= 2) flashAlert(lv);
   }
 
   function updateAxisCard(numEl, barEl, g) {
-    const txt = g.toFixed(2);
-    numEl.innerHTML = `${txt}<small style="font-size:11px">G</small>`;
-    numEl.style.color = gColour(g);
-    const pct = Math.min(100, (g / 1.0) * 100);
-    barEl.style.width = pct + '%';
+    numEl.innerHTML    = `${g.toFixed(2)}<small style="font-size:11px">G</small>`;
+    numEl.style.color  = gColour(g);
+    barEl.style.width  = Math.min(100, (g / 0.6) * 100) + '%';
     barEl.style.background = gColour(g);
   }
 
@@ -742,39 +869,30 @@
     scoreGrade.style.color = scoreColour(s);
   }
 
-  function flashAlert(g) {
-    if (g < THRESHOLDS.harsh) return;
-    alertFlash.style.background = g >= THRESHOLDS.extreme ? 'var(--red)' : 'var(--orange)';
+  function flashAlert(lv) {
+    alertFlash.style.background = lv >= 3 ? 'var(--red)' : 'var(--orange)';
     alertFlash.classList.add('show');
     setTimeout(() => alertFlash.classList.remove('show'), 600);
   }
 
-  function logEvent(combined, gx, gy, gz) {
+  function logEvent(label, lv, val, deduction) {
     const placeholder = eventList.querySelector('[style*="justify-content"]');
     if (placeholder) placeholder.remove();
 
-    let cls, label;
-    if (combined >= THRESHOLDS.extreme) { cls = 'badge-extreme'; label = '剧烈震动'; }
-    else if (combined >= THRESHOLDS.harsh) { cls = 'badge-harsh'; label = '急加速/急刹车'; }
-    else { cls = 'badge-mild'; label = '轻微颠簸'; }
-
-    const dir = gx > gy && gx > gz ? '横向' : gy > gz ? '纵向' : '垂直';
     const now = new Date();
-    const timeStr = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+    const t   = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+    const cls = levelClass(lv);
 
     const item = document.createElement('div');
     item.className = 'event-item';
     item.innerHTML = `
-      <span class="event-badge ${cls}">${label}</span>
-      <span style="color:var(--text)">${dir} ${combined.toFixed(2)}G</span>
-      <span class="event-time">${timeStr}</span>
+      <span class="event-badge ${cls}">L${lv} ${label}</span>
+      <span style="color:var(--text)">${val.toFixed(3)}</span>
+      <span style="color:var(--red);font-size:11px">-${deduction.toFixed(2)}分</span>
+      <span class="event-time">${t}</span>
     `;
     eventList.insertBefore(item, eventList.firstChild);
-
-    // trim list
-    while (eventList.children.length > MAX_EVENTS) {
-      eventList.removeChild(eventList.lastChild);
-    }
+    while (eventList.children.length > MAX_EVENTS) eventList.removeChild(eventList.lastChild);
   }
 
   /* ─── Timer ─── */
@@ -821,6 +939,21 @@
       return;
     }
 
+    // Reset session state
+    totalDeduction = 0;
+    sessionEvents  = 0;
+    sessionPeak    = 0;
+    Object.keys(lastEvtTime).forEach(k => lastEvtTime[k] = 0);
+    jerkBufY.length = 0;
+    jerkBufX.length = 0;
+    statEvents.textContent = '0';
+    statPeak.textContent   = '0.00';
+    eventList.innerHTML    = '<div class="event-item" style="color:var(--muted);justify-content:center;font-size:13px">暂无事件 · 等待传感器数据</div>';
+    Object.keys(maxG).forEach(k => maxG[k] = 0);
+    maxXEl.textContent = '峰值 0.00G';
+    maxYEl.textContent = '峰值 0.00G';
+    maxZEl.textContent = '峰值 0.00G';
+
     window.addEventListener('devicemotion', onMotion);
     running = true;
     startTimer();
@@ -831,6 +964,7 @@
     statusPill.classList.add('active');
     statusText.textContent = '检测中';
     document.getElementById('permNote').style.display = 'none';
+    updateScore(100);
   }
 
   function stopSensor() {
@@ -844,8 +978,7 @@
     statusPill.classList.remove('active');
     statusText.textContent = '已停止';
 
-    // Final score freeze
-    scoreGrade.textContent = scoreGrade.textContent.replace('等待数据…', '-- 等待数据');
+    // Score is already frozen at last value
   }
 
   /* ─── Demo mode if no sensor (desktop preview) ─── */
@@ -854,16 +987,18 @@
     setInterval(() => {
       if (!running) return;
       t += 0.05;
+      // Occasionally spike to trigger events for demo
+      const spike = (Math.floor(t * 0.25) % 15 === 0) ? 2.2 : 1.0;
       const fakeEvent = {
         accelerationIncludingGravity: {
-          x: Math.sin(t * 0.7) * G * 0.15 + (Math.random() - 0.5) * G * 0.05,
-          y: Math.cos(t * 0.5) * G * 0.12 + (Math.random() - 0.5) * G * 0.04,
-          z: G + Math.sin(t * 1.2) * G * 0.08,
+          x: Math.sin(t * 0.7) * G * 0.18 * spike + (Math.random() - 0.5) * G * 0.04,
+          y: Math.cos(t * 0.4) * G * 0.22 * spike + (Math.random() - 0.5) * G * 0.04,
+          z: G + Math.sin(t * 1.3) * G * 0.12,
         },
         acceleration: {
-          x: Math.sin(t * 0.7) * G * 0.15,
-          y: Math.cos(t * 0.5) * G * 0.12,
-          z: Math.sin(t * 1.2) * G * 0.08,
+          x: Math.sin(t * 0.7) * G * 0.18 * spike,
+          y: Math.cos(t * 0.4) * G * 0.22 * spike,
+          z: Math.sin(t * 1.3) * G * 0.12,
         }
       };
       onMotion(fakeEvent);
@@ -874,8 +1009,8 @@
   if (!/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)) {
     document.getElementById('permNote').textContent = '🖥️ 桌面预览模式 · 使用模拟数据（请在手机上使用真实传感器）';
     demoMode();
-    // Auto start
     setTimeout(() => {
+      totalDeduction = 0;
       running = true;
       startTimer();
       frameId = requestAnimationFrame(drawWave);
@@ -883,6 +1018,7 @@
       startBtn.classList.add('stop');
       statusPill.classList.add('active');
       statusText.textContent = '演示中';
+      updateScore(100);
     }, 300);
   }
 </script>
